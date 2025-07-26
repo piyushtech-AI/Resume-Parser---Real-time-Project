@@ -131,43 +131,7 @@ for filename in os.listdir(folder_path):
 # Save to Excel
 df = pd.DataFrame(results)
 df.to_excel("parsed_resumes.xlsx", index=False)
-print("✅ Resumes parsed and saved to 'parsed_resumes.xlsx'")
+print(" Resumes parsed and saved to 'Piyush_parsed_resumes.xlsx'")
 
 
 
-✅ What’s Good:
-Modular Design:
-
-Code is split across logical files: file_reader.py, text_cleaner.py, utils.py, resume_parser.py, and main.py.
-
-File Format Handling:
-
-Supports PDF, DOCX, DOC/RTF (via pypandoc), images (OCR via pytesseract), and plain text/HTML. This is very comprehensive.
-
-Text Cleaning:
-
-Removes duplicate lines and unwanted lines (e.g., "Page 1", "Resume") using regex.
-
-Information Extraction:
-
-Uses both regex and spaCy (NER) for name and other fields.
-
-Extracts structured sections using regex-based headers.
-
-Skill Categorization:
-
-Categorizes skills into Profession, Specialization, and Other.
-
-Designed to be extensible by editing the skill lists.
-
-Output:
-
-Saves all parsed data into a structured Excel file.
-
-What Can Be Improved:
-1. Regex for Name Extraction (utils.py):
-Current logic may miss names with middle initials or multiple parts (e.g., "John A. Doe").
-
-Use spaCy NER as fallback is good, but can be extended to look for title-cased phrases with 2+ tokens early in the doc.
-
-✅ Suggestion: Improve regex or move fully to spaCy for robustness.
