@@ -1,0 +1,173 @@
+# --- file_reader.py ---
+import os
+import pdfplumber
+import docx
+import pytesseract
+import pypandoc
+from PIL import Image
+
+
+def extract_text_from_file(file_path):
+    ext = file_path.lower().split(".")[-1]
+    try:
+        if ext == "pdf":
+            with pdfplumber.open(file_path) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        elif ext == "docx":
+            return "\n".join(p.text for p in docx.Document(file_path).paragraphs)
+        elif ext in ["doc", "rtf"]:
+            return pypandoc.convert_file(file_path, 'plain')
+        elif ext in ["png", "jpg", "jpeg"]:
+            return pytesseract.image_to_string(Image.open(file_path))
+        elif ext in ["txt", "html"]:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                return f.read()
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+    return ""
+
+
+# --- text_cleaner.py ---
+import re
+from unidecode import unidecode
+
+def clean_text(text):
+    text = unidecode(text)
+    lines = text.splitlines()
+    cleaned = []
+    last_line = None
+    for line in lines:
+        line = re.sub(r'\s+', ' ', line.strip())
+        if line and line != last_line:
+            if not re.match(r'(page \d+|\d+/\d+|resume)', line, re.I):
+                cleaned.append(line)
+                last_line = line
+    return "\n".join(cleaned)
+
+
+# --- utils.py ---
+import re
+
+def extract_email(text):
+    return re.search(r"[\w\.-]+@[\w\.-]+", text)
+
+def extract_phone(text):
+    return re.search(r"\+?\d[\d\s\-]{8,}\d", text)
+
+def extract_name(text):
+    match = re.search(r"(?i)(?:Name[:\s]*)?([A-Z][a-z]+(?: [A-Z][a-z]+)+)", text[:300])
+    return match.group(1) if match else None
+
+
+def extract_section(text, header):
+    pattern = re.compile(fr"{header}[:\s\n]*(.*?)\n(?:[A-Z][a-z]+[:\n]|\Z)", re.S)
+    match = pattern.search(text)
+    return match.group(1).strip() if match else None
+
+
+# --- resume_parser.py ---
+import spacy
+from utils import extract_email, extract_phone, extract_name, extract_section
+
+nlp = spacy.load("en_core_web_sm")
+
+professions = ["Doctor", "Nurse", "Developer"]
+specialties = ["Cardiology", "Pediatrics", "Neurology"]
+other_skills = ["Python", "Communication", "Leadership", "Excel"]
+
+def parse_resume(text, file_name):
+    doc = nlp(text)
+    name = extract_name(text) or next((ent.text for ent in doc.ents if ent.label_ == "PERSON"), None)
+    email_match = extract_email(text)
+    phone_match = extract_phone(text)
+    sentences = list(doc.sents)
+    experience_desc = " ".join(str(s).strip() for s in sentences[:2])
+
+    skill1 = [word for word in professions if word.lower() in text.lower()]
+    skill2 = [word for word in specialties if word.lower() in text.lower()]
+    skill3 = [word for word in other_skills if word.lower() in text.lower()]
+
+    education = extract_section(text, "Education")
+    certifications = extract_section(text, "Certifications|Licenses")
+    address = extract_section(text, "Address")
+    experience = extract_section(text, "Experience") or experience_desc
+
+    return {
+        "Resume File Name": file_name,
+        "Candidate Full Name": name,
+        "Email Address": email_match.group() if email_match else None,
+        "Phone Number": phone_match.group() if phone_match else None,
+        "Complete Address": address,
+        "Most Recent Job Title": None,  # You can use more advanced parsing here
+        "Most Recent Company Name": None,  # Likewise, better NER or rules needed
+        "Recent Experience Description": experience,
+        "Skills 1 (Profession-related skills)": skill1,
+        "Skills 2 (Specialization-related skills)": skill2,
+        "Skills 3 (Other IT or soft skills)": skill3,
+        "Certifications and Licenses": certifications,
+        "Education": education
+    }
+
+
+# --- main.py ---
+import os
+import pandas as pd
+from file_reader import extract_text_from_file
+from text_cleaner import clean_text
+from resume_parser import parse_resume
+
+folder_path = r"C:\\Data Migration agencies\\HQ"
+results = []
+
+for filename in os.listdir(folder_path):
+    full_path = os.path.join(folder_path, filename)
+    if os.path.isfile(full_path):
+        raw_text = extract_text_from_file(full_path)
+        cleaned_text = clean_text(raw_text)
+        if cleaned_text.strip():
+            parsed = parse_resume(cleaned_text, filename)
+            results.append(parsed)
+
+# Save to Excel
+df = pd.DataFrame(results)
+df.to_excel("parsed_resumes.xlsx", index=False)
+print("✅ Resumes parsed and saved to 'parsed_resumes.xlsx'")
+
+
+
+✅ What’s Good:
+Modular Design:
+
+Code is split across logical files: file_reader.py, text_cleaner.py, utils.py, resume_parser.py, and main.py.
+
+File Format Handling:
+
+Supports PDF, DOCX, DOC/RTF (via pypandoc), images (OCR via pytesseract), and plain text/HTML. This is very comprehensive.
+
+Text Cleaning:
+
+Removes duplicate lines and unwanted lines (e.g., "Page 1", "Resume") using regex.
+
+Information Extraction:
+
+Uses both regex and spaCy (NER) for name and other fields.
+
+Extracts structured sections using regex-based headers.
+
+Skill Categorization:
+
+Categorizes skills into Profession, Specialization, and Other.
+
+Designed to be extensible by editing the skill lists.
+
+Output:
+
+Saves all parsed data into a structured Excel file.
+
+What Can Be Improved:
+1. Regex for Name Extraction (utils.py):
+Current logic may miss names with middle initials or multiple parts (e.g., "John A. Doe").
+
+Use spaCy NER as fallback is good, but can be extended to look for title-cased phrases with 2+ tokens early in the doc.
+
+✅ Suggestion: Improve regex or move fully to spaCy for robustness.
