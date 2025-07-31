@@ -1,0 +1,129 @@
+31 July 2025 -  Latest Improvisation with Update work code
+
+import os
+import spacy
+import pdfplumber
+import docx
+import pytesseract
+from PIL import Image
+import re
+import pandas as pd
+import pypandoc
+
+# Load spaCy NLP model
+nlp = spacy.load("en_core_web_sm")
+
+# Sample keyword sets
+professions = ["Advanced Practice Registered Nurse","CNA","LPN/LVN","RN","Laboratory","Behavioral Health","Cardiology","Chiropractor","Clinical Support Tech","Dentistry","Dialysis Tech","Dietary Services","EMT","ER Tech","Medical Assistant","Neuro Diagnostics","Ophthalmology","Paramedic","Patient Care Technician","Perfusionist","Pharmacy","Physicist","Respiratory Therapy","Sitter","Social Services","Sports Medicine","Surgical Services","Radiology/Imaging","Audiologist","Occupational Therapy","Physical Therapy","Speech Therapy","Health and Information Management","Environmental Services","Finance/Accounting","Food and Nutrition Services","Human Resources","Administrative","Information Technology","Non-Clinical","Nursing","Management","Non Clinical","Tech","Medical Coding","Cardiopulmonary","Rehabilitation Therapy"]  # keep your full professions list here
+specialties = ["Certified Nurse Midwife","Certified Registered Nurse Anesthetist (CRNA)","Clinical Nurse Specialist","Nurse Practitioner","Registered Nurse First Assist (RNFA)","Psych/Mental Health","Acute Care","Geriatrics","LTAC","LTC","Pediatrics","SNF","Nursing","MedSurg","Patient Care Technician","Medical Surgical Care","Certified Medication Technician","Acute Rehab","Ambulatory","Case Manager","Corrections","Dialysis","Emergency Room","Endocrinology","Executive Health/Internal Medicine","GI/Endoscopy","Home Health","Hospice","Long Term Acute Care (LTAC)","Long Term Care","MedSurg / Tele","Occupational Health","Oncology","Operating Room","Outpatient Clinic","Patient Care Coordinator","Psych","Public Health","Reconstructive Surgery","Rehab","School","Sub Acute","Urgent Care","Urology","Utilization Review","Vaccinator","Vascular Surgery","LPN-Infectious Disease & Immunology","Travel LPN","Clinic","Behavioral Health","Cardiac PCU/IMC/Stepdown","Cath Lab","Clinical Research","COVID","CVICU","CVOR","Educator","Electrophysiology (EP) Lab","ER","Float Pool","GI / Endoscopy","House Supervisor","ICU","Infection Control","Infusion","Interventional Radiology","IV Therapy","L&D","Long Term Care (LTC)","Manager","Mother Baby","Neuro PCU/IMC/Stepdown","Neuro ICU","NICU","Nursery","OB","Observation Unit","Ortho","PACU","Pain Management","Palliative Care","PCU/IMC/Stepdown","Pediatric ER","Pediatric Wound Care","PICC","PICU","Post-Partum","Pre-Op/Post-Op/Same Day Surgery","Telemetry","Transplant","Triage","Vaccination","Wound Care","CCU","General Clinic","Medical ICU","Cardiac Device Clinic Specialist","Med-surg Adult","Psychiatric Adult","Med-Surg Ortho","Step Down","Cardiac Telemetry","IMC","Contract Clinician","LDRP","Break RN NIGHT","Critical Care Float","CVU","Clinical Lab Scientist","Contractor","Cyto Tech","Director","Embryologist","Histology Tech","Laboratory Assistant","Medical Lab Scientist","Medical Lab Technician","Medical Technologist","Metabolomic Technician","Microbiology Tech","Pathology Assistant","Phlebotomist","Medical Equipment Maintenace Technician","Behavioral Health Assistant","Behavioral Health Tech","Social Worker-Clinical","Cath Lab Manager","Cath Lab Tech","EKG Tech","Electrophysiology Tech","Holter Monitor/Stress Test Technician","Cardio OR (Cardiovascular Operating Room)","Chiropractor","Chiropractor Assistant","Clinical Support Tech","Dental Assistant","Dental Hygienist","Dental Technician","Dental Therapist","Dentist","Denturist","Endodontist","Oral Surgeon","Orthodontist","Pedodontist/Pediatric Dentist","Periodontist","Dialysis Tech","Clinical Nutrition Manager","Dietary Aide","Dietetic Technician","Dietitian","EMS Educator","EMT","ER Tech","Allergy and Immunology","Dermatology","Family Practice","Internal Medicine","OB/GYN","Otorhinolaryngology (ENT)","Vaccination Support","Medical Assistant","Certified Hyperbaric Specialist","Certified Hyperbaric Technician","EEG Tech","EEG Tech Manager","Hyperbaric Technician","Intraoperative Neuromonitoring Tech","Polysomnographer/Sleep Tech","Ophthalmic Technician","Optician","Optometrist","Paramedic","Perfusionist","Apprentice","Pharmacist - Inpatient","Pharmacist - Outpatient","Pharmacy Tech Inpatient","Pharmacy Tech Outpatient","Pharmacy Technician","Medical Physicist","Radiation Oncology","Pulmonary Function Technologist","Registered Respiratory Therapist","Registered Respiratory Therapist - LTAC","Registered Respiratory Therapist - NICU","Registered Respiratory Therapist - Pediatrics","Registered Respiratory Therapist - PICU","Sitter","Case Worker","Certified Social Worker (CSW)","Licensed Clinical Social Worker (LCSW)","Licensed Marriage and Family Therapist","Licensed Professional Clinical Counselor","Licensed Professional Counselor","Medical Social Worker","Mental Health","School Social Worker","Social Worker Assistant","Home Hospice","Health Science","MSW (Masters of Social Work)","Athletic Trainer","Exercise Instructor","Exercise Physiologist","Kinesiotherapist","Yoga Instructor","Anesthesia Technician","Certified Cardiac First Assist","Certified OR Tech / Surgical Tech (CST)","Certified Ortho Tech","Certified Surgical First Assist","CVOR Certified Surgical First Assist","CVOR Tech","GR / Endo Tech","OB Tech","OR Tech / Surgical Tech","Pediatric CVOR Tech","Pediatric OR Tech / Surgical Tech","Pediatric Sterile Processing Tech (SPT)","Perioperative Assistant","Sterile Processing Tech (SPT)","Surgical Support Aide","CT Tech","Diagnostic Imaging Assistant","Dosimetrist","Echo Tech/Cardiac Sonographer","Echo Tech/Cardiac Sonographer Pediatrics","Interventional Radiology Tech","Mammography Tech","Monitor Tech","MRI Tech","Nuclear Medicine Tech","Radiation Therapist","Radiology Manager","Registered Radiology Assistant","Sonographer","Special Procedures","Ultrasound Tech - General","Ultrasound Tech - OB/GYN","Ultrasound Tech - Vascular","X-Ray Tech","Echo Technologist","Echo Tech","Echo/Vascualer Tech","Audiologist","Certified Occupational Therapist Assistant (COTA)","COTA Acute Care","COTA Behavioral Health","COTA Home Health","COTA Inpatient Rehab","COTA LTAC","COTA Outpatient","COTA Pediatrics","COTA SNF","Occupational Therapist (OT)","OT Acute Care","OT Behavioral Health","OT Home Health","OT Inpatient Rehab","OT LTAC","OT Outpatient","OT Pediatrics","OT SNF","Physical Therapist (PT)","Physical Therapist Assistant (PTA)","PT Acute Care","PT Aide","PT Behavioral Health","PT Home Health","PT Inpatient Rehab","PT LTAC","PT Outpatient","PT Pediatrics","PT SNF","PTA Acute Care","PTA Behavioral Health","PTA Home Health","PTA Inpatient Rehab","PTA LTAC","PTA Outpatient","PTA Pediatrics","PTA SNF","Rehab Aide","SLP Behavioral Health","SLP Home Health","SLP Inpatient Rehab","SLP LTAC","SLP Outpatient","SLP Pediatrics","SLP SNF","SLPA Behavioral Health","SLPA Inpatient Rehab","SLPA LTAC","SLPA Outpatient","SLPA SNF","Speech Language Pathologist (SLP)","Speech Language Pathologist Assistant (SLPA)","Medical Coder - Inpatient","Medical Coder - Outpatient","Auditor","Coding Compliance Coordinator","Consultant","Credentialing Coordinator","Credentialing Specialist","Data Entry Clerk","Health Information Specialist","Health Information Manager","Medical Scribe","Medical Transcriptionist","Patient Access Coordinator","Patient Access Manager","Patient Access Specialist","Project Manager","Technical Writer","HIM Director","Custodial Supervisor","Custodian","Equipment Processor","EVS Aide","Floor Care Aide","Housekeeper","Linen Aide","Linen Tech","Accounts Payable Clerk","Accounts Receivable Clerk","Audit Manager","Billing Specialist","Business Analyst","Claims Processor","Data Analyst","Finance Clerk","Financial Coordinator","Financial Administrative Assistant","Medical Billing Specialist","Patient Accountant","Patient Services Coordinator","Payroll Coordinator","Scheduling Coordinator","Barista","Cashier","Chef","Dishwasher","Food Service Tech","Nutrition Clerk","Room Service Attendant","Human Resources Representative","Recruiter","Benefits Analyst","Benefits Manager","Benefits Specialist","Administrative Assistant","Administrative Representative","Administrative Coordinator","Clerk","Clinical Research Manager","Clinical Services Manager","Community Outreach Specialist","Customer Service Representative","Department Coordinator","Executive Assistant","Ground Manager","Guest Services Coordinator","Patient Liaison","Patient Screener","Secretary","Staffing Coordinator","Inside Sales","Analyst","Automation Engineer","BI Analyst","BI Consultant","Business Intelligence Developer","Cloud Architect","Developer","Engineer","Field Support Tech","IS Support Technician","IS Trainer","IT Project Manager","Network Architect","Security Analyst","Service Desk Analyst","Service Desk Technician","Systems Administrator","Systems Analyst","Service Technician","Claims/Mail Tech","Clerical","Medical Coding","Member Experience Navigator","EMT-Paramedic","LVN","Labor and Delivery Nurse","Skilled Nursing (SNF)","Surgical Technologist","Sterile Processing Technologist","Infection Preventionist","LPN","Social Worker","Care Manager","NHA / Post Acute","OB Technologist","NHA","Scrub Technologist","Director of Nursing","Service Technican","ER Technologist","Medical Coding Auditor","Respiratory Therapy","Cardiac Monitoring Technician","Recreational Therapist"]  # keep your full specialties list here
+other_skills = ["Business Analyst", "Software Developer", "Java Developer", "Project Manager"]
+
+# U.S. States
+us_states = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
+}
+state_names = list(us_states.keys()) + list(us_states.values())
+
+# ✅ Helper: Whole-word matcher
+def find_whole_word_matches(text, word_list):
+    return [word for word in word_list if re.search(r'\b' + re.escape(word) + r'\b', text, re.IGNORECASE)]
+
+# ✅ Extract text from multiple formats
+def extract_text_from_file(file_path):
+    ext = file_path.lower().split(".")[-1]
+    try:
+        if ext == "pdf":
+            with pdfplumber.open(file_path) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        elif ext == "docx":
+            doc = docx.Document(file_path)
+            return "\n".join(p.text for p in doc.paragraphs)
+        elif ext in ["doc", "rtf"]:
+            return pypandoc.convert_file(file_path, 'plain')
+        elif ext in ["png", "jpg", "jpeg"]:
+            return pytesseract.image_to_string(Image.open(file_path))
+        elif ext in ["txt", "html"]:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                return f.read()
+    except Exception as e:
+        print(f"❌ Error reading {file_path}: {e}")
+    return ""
+
+# ✅ Parse resume content
+def parse_resume(text, file_name):
+    doc = nlp(text)
+
+    # Name
+    name = next((ent.text for ent in doc.ents if ent.label_ == "PERSON"), None)
+
+    # Email
+    email = re.search(r"[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+", text)
+
+    # Phone
+    phone_pattern = r'(\+1\s?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}'
+    phone = re.search(phone_pattern, text)
+
+    # Organization
+    orgs = list(set(ent.text for ent in doc.ents if ent.label_ == "ORG" and "@" not in ent.text))
+    company = orgs[0] if orgs else None
+
+    # Job title
+    job_match = re.search(r"(is a|works as a|currently a)\s([A-Za-z\s]+)", text)
+    job_title = job_match.group(2).strip() if job_match else None
+
+    # Experience
+    sentences = list(doc.sents)
+    experience_desc = " ".join(str(s).strip() for s in sentences[:2])
+
+    # US State
+    found_states = [state for state in state_names if re.search(r'\b' + re.escape(state) + r'\b', text)]
+    us_state = found_states[0] if found_states else None
+
+    # Skills (whole-word matched)
+    skill1 = find_whole_word_matches(text, professions)
+    skill2 = find_whole_word_matches(text, specialties)
+    skill3 = find_whole_word_matches(text, other_skills)
+
+    return {
+        "Resume File Name": os.path.basename(file_name),
+        "Candidate Full Name": name,
+        "Email Address": email.group() if email else None,
+        "Phone Number": phone.group() if phone else None,
+        "US State": us_state,
+        "Complete Address": None,
+        "Most Recent Job Title": job_title,
+        "Most Recent Company Name": company,
+        "Recent Experience Description": experience_desc,
+        "Skills 1 (Profession-related skills)": skill1,
+        "Skills 2 (Specialization-related skills)": skill2,
+        "Skills 3 (Other IT or soft skills)": skill3,
+        "Certifications and Licenses": None,
+        "Full Resume Text": text
+    }
+
+# ✅ Resume Folder Path
+folder_path = r"C:\Data Migration agencies\HQ"
+results = []
+
+# ✅ Process each file
+for filename in os.listdir(folder_path):
+    full_path = os.path.join(folder_path, filename)
+    if os.path.isfile(full_path):
+        text = extract_text_from_file(full_path)
+        if text.strip():
+            parsed = parse_resume(text, full_path)
+            results.append(parsed)
+
+# ✅ Export to Excel
+df = pd.DataFrame(results)
+df.to_excel("parsed_resumes.xlsx", index=False)
+print("✅ Resumes parsed and saved to 'parsed_resumes.xlsx'")
